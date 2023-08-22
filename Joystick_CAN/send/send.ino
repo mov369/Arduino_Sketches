@@ -35,6 +35,8 @@ void setup()
   byte ByWireControlIndicators[8];
   byte ByWireControlRequest[8];
 
+  byte DriveByWireState[8]; //For testing Cancillaries
+
   //Serial monitoring set-up
   if (PROGRAM_MODE == true){
      Serial.begin(115200);
@@ -65,7 +67,7 @@ const int  Accel_Y[5] =        {0,   0,      0,      0,      1000};
 const unsigned int Brake_X[5] = {0xE1, 0x1B0, 0x1E5, 0x210, 0x3A5};
 const int  Brake_Y[5] =        {1000,   0,      0,      0,      0};
 
-const unsigned long frameRepetitionTime=2500; //repetition rate of the frame in ms
+const unsigned long frameRepetitionTime=2000; //repetition rate of the frame in ms
 unsigned long previousTime; // last time for frame rate calcs
 //rolling counters for alive signal
 byte countAccel = 0;
@@ -90,6 +92,8 @@ void loop()
   byte ByWireControlSteering[8];
   byte ByWireControlIndicators[8];
   byte ByWireControlRequest[8];
+
+  byte DriveByWireState[8]; //For testing Cancillaries
   //byte CRCTEST[8];
   unsigned long currentTime = millis();   // grab the current time
   unsigned int CH3Input = 0;
@@ -103,6 +107,8 @@ void loop()
     BrakeScaledValue = lookup_u16_u16(ThroRawValue, Brake_X, Brake_Y, 5);
     digitalWrite(LED,leds);  // light/extinguish the led on alternate cycles
     leds=!leds;
+
+    Serial.println(CH3Input);
 
     //ByWireControlBrake(0x111) data loading into the message
     ByWireControlAccelerator[0] = (byte)(AccelScaledValue & 0x00ff); //extracting lower 8 bits and setting higher bits to 0;
@@ -194,9 +200,20 @@ void loop()
     ByWireControlRequest[3] = byte((crcResult >> 8) & 0x00ff);
     CAN.sendMsgBuf(0x114, 0, 8, ByWireControlRequest);
     
+    DriveByWireState[0] = 1;
+    if(analogRead(CH3ADC) > 200) {
 
-    Serial.print("CRC16/XModem Checksum: 0x");
-    Serial.println(crcResult4, HEX);
+    DriveByWireState[0] = DriveByWireState[0] | B00000010;}
+    DriveByWireState[1] = countRequest++;
+    DriveByWireState[2] = 0;
+    DriveByWireState[3] = 0;
+    DriveByWireState[4] = 0;
+    DriveByWireState[5] = 0;
+    DriveByWireState[6] = 0;
+    DriveByWireState[7] = 0;
+    CAN.sendMsgBuf(0x1A0, 0, 8, DriveByWireState);
+    //Serial.print("CRC16/XModem Checksum: 0x");
+    //Serial.println(crcResult4, HEX);
   
     previousTime = currentTime;// set previous time for next timer loop
   }//if currentTime-previousTime

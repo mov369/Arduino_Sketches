@@ -24,7 +24,7 @@ byte DriveByWireState[8];
 
 //Timers
 const long blinkInterval = 400;  // Blink interval in milliseconds
-const unsigned long frameRepetitionTime=1000;  // repetition rate of the frame in ms  SET TO 1s for INITIAL TESTS
+const unsigned long frameRepetitionTime=500;  // repetition rate of the frame in ms  SET TO 1s for INITIAL TESTS
 unsigned long previousMillis = 0;
 unsigned long previousTime;                    // last time for frame rate calcs
 byte count = 0;  // rolling counter for alive signal
@@ -81,16 +81,21 @@ void setup()
 
 void loop()
 {
+
+  
+
   unsigned long currentTime = millis();
   if (currentTime - previousMillis >= blinkInterval) {
     previousMillis = currentTime;  
-      if (digitalRead(Indicator_Switch) == HIGH) {
-          digitalWrite(Indicator_Switch, LOW);
+      if (Indicator_Switch) {
+          Indicator_Switch = false;
         } 
       else {
-          digitalWrite(Indicator_Switch, HIGH);
+          Indicator_Switch = true;
         }
     }
+
+    //if(Indicator_Switch = true){digitalWrite(IND_L_CONT, HIGH);}
 
   if (currentTime-previousTime >= frameRepetitionTime) {
     digitalWrite(LED,leds);  // light/extinguish the led on alternate cycles
@@ -135,24 +140,25 @@ void loop()
         unsigned int combinedvalue;
         combinedvalue = (highByte << 8 )| lowByte;
 
-        if(Autonomous_Mode == true && Indicator_Switch == true && indicatorcommand == 2 ){
+        if(indicatorcommand == 2 && Autonomous_Mode == true && Indicator_Switch == true){
             digitalWrite(IND_L_CONT, HIGH);
             digitalWrite(IND_R_CONT, LOW);
           } 
-        if (Autonomous_Mode == true && Indicator_Switch == true && indicatorcommand == 3){
+        if (indicatorcommand == 3 && Autonomous_Mode == true && Indicator_Switch == true){
             digitalWrite(IND_L_CONT, LOW);
             digitalWrite(IND_R_CONT, HIGH);
           } 
-        if (Autonomous_Mode == true && Indicator_Switch == true && indicatorcommand == 4){
+        if (indicatorcommand == 4 && Autonomous_Mode == true && Indicator_Switch == true){
             digitalWrite(IND_L_CONT, HIGH);
             digitalWrite(IND_R_CONT, HIGH);
           } 
-        else{digitalWrite(IND_L_CONT, LOW);
+        else{
+            digitalWrite(IND_L_CONT, LOW);
             digitalWrite(IND_R_CONT, LOW);
-            } // End of actions on 0x113 signals
+          } // End of actions on 0x113 signals
         } // End of message 0x113 extraction
 
-       if (canId == 0x1A0) {             // Handle the first message here
+       if (canId == 0x1A0) {             // Handle the second message
         Serial.println("Received Message with ID 0x1A0:");
         for (int i = 0; i < len; i++) {
           Serial.print(buf[i], HEX);
@@ -171,10 +177,7 @@ void loop()
           Autonomous_Mode = true;
         }
         else {Autonomous_Mode = false;}
-      
-        Serial.print(" MODE: ");
-        Serial.print(Autonomous_Mode);
-        Serial.println();
+        
       } 
 
 
@@ -215,11 +218,6 @@ void loop()
     //Serial.println(crcResult1);
  
 
-
-
-
-  
-  
   //CYCLIC STATE MESSAGE
   VehicleStateIndicators[0] = 0; 
   VehicleStateIndicators[1] = count++;
@@ -236,6 +234,14 @@ void loop()
   CAN.sendMsgBuf(0x102, 0, 8, VehicleStateIndicators);
 
   previousTime = currentTime;   // set previous time for next timer loop
+
+  Serial.println();
+  Serial.print("MODE: ");
+  Serial.print(Autonomous_Mode);
+  Serial.println();
+  Serial.print("Indicator Switch: ");
+  Serial.println(Indicator_Switch);
+  Serial.println();
   }
 } //if currentTime-previousTime if loop end
  

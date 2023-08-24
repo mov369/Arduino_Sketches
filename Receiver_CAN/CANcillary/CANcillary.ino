@@ -25,11 +25,11 @@ byte DriveByWireState[8];
 //Timers
 const long blinkInterval = 400;  // Blink interval in milliseconds
 const unsigned long frameRepetitionTime=500;  // repetition rate of the frame in ms  SET TO 1s for INITIAL TESTS
-unsigned long previousMillis = 0;
+
 unsigned long previousTime;                    // last time for frame rate calcs
 byte count = 0;  // rolling counter for alive signal
 uint16_t ms = 0;
-int indicator_timer_cal = 400; //This Cal controls how frequently the indicators pulse 
+int indicator_timer_cal = 1000; //This Cal controls how frequently the indicators pulse 
 //uint16_t can_rc_time_ms_104 = 0; 
 //uint16_t can_rc_time_ms_100 = 0;
 //int can_error_timeout_cal = 200;
@@ -81,23 +81,21 @@ void setup()
 
 void loop()
 {
-
-  
-
   unsigned long currentTime = millis();
-  if (currentTime - previousMillis >= blinkInterval) {
-    previousMillis = currentTime;  
+  if (0 == currentTime % indicator_timer_cal) { 
       if (Indicator_Switch) {
           Indicator_Switch = false;
         } 
       else {
           Indicator_Switch = true;
+          delay(200);
         }
     }
 
-    //if(Indicator_Switch = true){digitalWrite(IND_L_CONT, HIGH);}
+  //if(Indicator_Switch = true){digitalWrite(IND_L_CONT, HIGH);}
+  //if (currentTime-previousTime >= frameRepetitionTime) {
 
-  if (currentTime-previousTime >= frameRepetitionTime) {
+  if(0 == (currentTime % 5)){
     digitalWrite(LED,leds);  // light/extinguish the led on alternate cycles
     leds=!leds;
 
@@ -118,11 +116,11 @@ void loop()
       unsigned long canId = CAN.getCanId();
       
       if (canId == 0x113) {
-        Serial.println("Received Message with ID 0x113:");
-        for (int i = 0; i < len; i++) {
-          Serial.print(buf[i], HEX);
-          Serial.print(" ");
-        }
+        //Serial.println("Received Message with ID 0x113:");
+        //for (int i = 0; i < len; i++) {
+          //Serial.print(buf[i], HEX);
+          //Serial.print(" ");
+        //}
         Serial.println();
         indicatorcommand = buf[0];
         ByWireControlIndicators[0] = buf[0]; 
@@ -145,8 +143,9 @@ void loop()
             digitalWrite(IND_R_CONT, LOW);
           } 
         if (indicatorcommand == 3 && Autonomous_Mode == true && Indicator_Switch == true){
-            digitalWrite(IND_L_CONT, LOW);
             digitalWrite(IND_R_CONT, HIGH);
+            digitalWrite(IND_L_CONT, LOW);
+            
           } 
         if (indicatorcommand == 4 && Autonomous_Mode == true && Indicator_Switch == true){
             digitalWrite(IND_L_CONT, HIGH);
@@ -159,10 +158,10 @@ void loop()
         } // End of message 0x113 extraction
 
        if (canId == 0x1A0) {             // Handle the second message
-        Serial.println("Received Message with ID 0x1A0:");
-        for (int i = 0; i < len; i++) {
-          Serial.print(buf[i], HEX);
-          Serial.print(" ");}
+        //Serial.println("Received Message with ID 0x1A0:");
+        //for (int i = 0; i < len; i++) {
+        //  Serial.print(buf[i], HEX);
+        //  Serial.print(" ");}
         DriveByWireState[0] = buf[0]; 
         DriveByWireState[1] = buf[1];
         DriveByWireState[2] = buf[2]; 
@@ -179,7 +178,8 @@ void loop()
         else {Autonomous_Mode = false;}
         
       } 
-
+    
+    }
 
       //Serial.print("Data from ID: ");
       //Serial.println(CAN.getCanId(),HEX);
@@ -219,32 +219,31 @@ void loop()
  
 
   //CYCLIC STATE MESSAGE
-  VehicleStateIndicators[0] = 0; 
-  VehicleStateIndicators[1] = count++;
-  VehicleStateIndicators[2] = 0;
-  VehicleStateIndicators[3] = 0;
-  VehicleStateIndicators[4] = 0;
-  VehicleStateIndicators[5] = 0;  
-  VehicleStateIndicators[6] = 0;
-  VehicleStateIndicators[7] = 0;
-  size_t dataLength = sizeof(VehicleStateIndicators);
-  uint16_t crcResult = crc16_xmodem(VehicleStateIndicators, dataLength);
-  VehicleStateIndicators[2] = byte(crcResult & 0x00ff);
-  VehicleStateIndicators[3] = byte((crcResult >> 8) & 0x00ff); 
-  CAN.sendMsgBuf(0x102, 0, 8, VehicleStateIndicators);
+    VehicleStateIndicators[0] = 0; 
+    VehicleStateIndicators[1] = count++;
+    VehicleStateIndicators[2] = 0;
+    VehicleStateIndicators[3] = 0;
+    VehicleStateIndicators[4] = 0;
+    VehicleStateIndicators[5] = 0;  
+    VehicleStateIndicators[6] = 0;
+    VehicleStateIndicators[7] = 0;
+    size_t dataLength = sizeof(VehicleStateIndicators);
+    uint16_t crcResult = crc16_xmodem(VehicleStateIndicators, dataLength);
+    VehicleStateIndicators[2] = byte(crcResult & 0x00ff);
+    VehicleStateIndicators[3] = byte((crcResult >> 8) & 0x00ff); 
+    CAN.sendMsgBuf(0x102, 0, 8, VehicleStateIndicators);
 
-  previousTime = currentTime;   // set previous time for next timer loop
+    //previousTime = currentTime;   // set previous time for next timer loop
 
-  Serial.println();
-  Serial.print("MODE: ");
-  Serial.print(Autonomous_Mode);
-  Serial.println();
-  Serial.print("Indicator Switch: ");
-  Serial.println(Indicator_Switch);
-  Serial.println();
-  }
-} //if currentTime-previousTime if loop end
- 
+    //Serial.println();
+    //Serial.print("MODE: ");
+    //Serial.print(Autonomous_Mode);
+    //Serial.println();
+    //Serial.print("Indicator Switch: ");
+    //Serial.println(Indicator_Switch);
+    //Serial.println();
+    
+  } //CAN Unpack & send loop
 } //loop end
 
 //CRC16 Generation

@@ -5,8 +5,8 @@
 #define CAN_500KBPS 16     // CAN baud rate
 #define SPI_CS_PIN  17     // setup chip select pin for CAN module
 #define LED 23              //LED pin to show program active
-#define IND_L_CONT A2       // ADC for steer pot
-#define IND_R_CONT A0        // ADC for Throttle pot
+#define IND_L_CONT A2       // ADC for steer pot 2 in dbc - red on breadboard
+#define IND_R_CONT A0        // ADC for Throt 3 in dbc - green on breadboard
 #define FLSENSE 12            // SW1 input
 #define FRSENSE 6             // SW2 input
 #define CH3ADC A1         /// Horn signal 

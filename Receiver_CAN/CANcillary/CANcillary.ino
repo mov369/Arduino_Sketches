@@ -23,26 +23,25 @@ byte ByWireControlIndicators[8];
 byte DriveByWireState[8];
 
 //Timers
-const long blinkInterval = 400;  // Blink interval in milliseconds
-const unsigned long frameRepetitionTime=500;  // repetition rate of the frame in ms  SET TO 1s for INITIAL TESTS
+const unsigned long frameRepetitionTime=5;  // repetition rate of the frame in ms  SET TO 1s for INITIAL TESTS
+unsigned long previousTime = 0; // last time for frame rate calcs
+int indicator_timer_cal = 400; //This Cal controls how frequently the indicators pulse 
+unsigned long previousMillis = 0; // last time for Indicator_High_B count
 
-unsigned long previousTime;                    // last time for frame rate calcs
-byte count = 0;  // rolling counter for alive signal
-uint16_t ms = 0;
-int indicator_timer_cal = 1000; //This Cal controls how frequently the indicators pulse 
-//uint16_t can_rc_time_ms_104 = 0; 
-//uint16_t can_rc_time_ms_100 = 0;
-//int can_error_timeout_cal = 200;
+int can_error_timeout_cal = 400; //CAN timers for determining time since last CAN frame received
+uint16_t can_rc_time_ms_113 = 0; 
+uint16_t can_rc_time_ms_1A0 = 0;
 
-//Switches
+byte count = 0; // rolling counter for alive signal
+
+//Enables 
 bool leds = true;
-bool Autonomous_Mode = false;
-bool Indicator_Switch = false;
+bool Autonomous_Mode_B = false;
+bool Indicator_High_B = false;
+bool CAN_Error_B = false;
 
 //Preset int values
 unsigned int CH3Input = 0;
-unsigned int indicatorcommand = 0;
-
 
 void setup()
 {
@@ -75,27 +74,35 @@ void setup()
   CAN.init_Mask(1, 0, 0x3ff);
   
   CAN.init_Filt(1, 0, 0x113);
-  CAN.init_Filt(2, 0, 0x1A0);
+  //CAN.init_Filt(2, 0, 0x1A0);
 }
 
 
 void loop()
 {
-  unsigned long currentTime = millis();
-  if (0 == currentTime % indicator_timer_cal) { 
-      if (Indicator_Switch) {
-          Indicator_Switch = false;
+  ByWireControlIndicators[0];
+  CAN_Error_B = false;
+  unsigned long currentMillis = millis();
+  //if (0 == millis() % indicator_timer_cal) {
+    if (currentMillis - previousMillis >= indicator_timer_cal) {  
+      if (Indicator_High_B) {
+          Indicator_High_B = false;
         } 
       else {
-          Indicator_Switch = true;
-          delay(200);
+          Indicator_High_B = true;
         }
+        previousMillis = currentMillis;
     }
+        Serial.println();
+    Serial.print("Indicator Switch: ");
+    Serial.println(Indicator_High_B);
 
   //if(Indicator_Switch = true){digitalWrite(IND_L_CONT, HIGH);}
   //if (currentTime-previousTime >= frameRepetitionTime) {
 
-  if(0 == (currentTime % 5)){
+  //if(0 == (millis() % 20)){
+    unsigned long currentTime = millis();
+    if (currentTime-previousTime >= frameRepetitionTime);{
     digitalWrite(LED,leds);  // light/extinguish the led on alternate cycles
     leds=!leds;
 
@@ -106,85 +113,119 @@ void loop()
     //CH3Input=analogRead(CH3ADC);          // read the value from Ch3 (strange oscillating small signal)
     //RECEIVE BIT
     //uint8_t CANRX_data[8]={0,0,0,0,0,0,0,0};
-
     unsigned char len = 0;
     unsigned char buf[8];
   
-  if(CAN_MSGAVAIL == CAN.checkReceive())            // check if data coming
-    {
-      CAN.readMsgBuf(&len, buf);        // read data,  len: data length, buf: data buf
-      unsigned long canId = CAN.getCanId();
+    if(CAN_MSGAVAIL == CAN.checkReceive())            // check if data coming
+      {
+        CAN.readMsgBuf(&len, buf);        // read data,  len: data length, buf: data buf
+        unsigned long canId = CAN.getCanId();
       
-      if (canId == 0x113) {
-        //Serial.println("Received Message with ID 0x113:");
-        //for (int i = 0; i < len; i++) {
-          //Serial.print(buf[i], HEX);
-          //Serial.print(" ");
-        //}
-        Serial.println();
-        indicatorcommand = buf[0];
-        ByWireControlIndicators[0] = buf[0]; 
-        ByWireControlIndicators[1] = buf[1];
-        ByWireControlIndicators[2] = 0; 
-        ByWireControlIndicators[3] = 0; 
-        ByWireControlIndicators[4] = buf[4]; 
-        ByWireControlIndicators[5] = buf[5];
-        ByWireControlIndicators[6] = buf[6];
-        ByWireControlIndicators[7] = buf[7];
-        size_t dataLength1 = sizeof(ByWireControlIndicators);
-        uint16_t crcResult1 = crc16_xmodem(ByWireControlIndicators, dataLength1);
-        byte highByte = buf[3];
-        byte lowByte = buf[2];
-        unsigned int combinedvalue;
-        combinedvalue = (highByte << 8 )| lowByte;
-
-        if(indicatorcommand == 2 && Autonomous_Mode == true && Indicator_Switch == true){
-            digitalWrite(IND_L_CONT, HIGH);
-            digitalWrite(IND_R_CONT, LOW);
-          } 
-        if (indicatorcommand == 3 && Autonomous_Mode == true && Indicator_Switch == true){
-            digitalWrite(IND_R_CONT, HIGH);
-            digitalWrite(IND_L_CONT, LOW);
-            
-          } 
-        if (indicatorcommand == 4 && Autonomous_Mode == true && Indicator_Switch == true){
-            digitalWrite(IND_L_CONT, HIGH);
-            digitalWrite(IND_R_CONT, HIGH);
-          } 
-        else{
-            digitalWrite(IND_L_CONT, LOW);
-            digitalWrite(IND_R_CONT, LOW);
-          } // End of actions on 0x113 signals
-        } // End of message 0x113 extraction
-
-       if (canId == 0x1A0) {             // Handle the second message
+        if (canId == 0x1A0) {             // Handle the second message
         //Serial.println("Received Message with ID 0x1A0:");
         //for (int i = 0; i < len; i++) {
         //  Serial.print(buf[i], HEX);
         //  Serial.print(" ");}
-        DriveByWireState[0] = buf[0]; 
-        DriveByWireState[1] = buf[1];
-        DriveByWireState[2] = buf[2]; 
-        DriveByWireState[3] = buf[3]; 
-        DriveByWireState[4] = buf[4]; 
-        DriveByWireState[5] = buf[5];
-        DriveByWireState[6] = buf[6];
-        DriveByWireState[7] = buf[7];
+          DriveByWireState[0] = buf[0]; 
+          DriveByWireState[1] = buf[1];
+          DriveByWireState[2] = buf[2]; 
+          DriveByWireState[3] = buf[3]; 
+          DriveByWireState[4] = buf[4]; 
+          DriveByWireState[5] = buf[5];
+          DriveByWireState[6] = buf[6];
+          DriveByWireState[7] = buf[7];
         
         
-        if (DriveByWireState[0] == 3){
-          Autonomous_Mode = true;
-        }
-        else {Autonomous_Mode = false;}
-        
-      } 
+          if (DriveByWireState[0] == 3){
+          Autonomous_Mode_B = true;
+          }
+          else {Autonomous_Mode_B = false;}
+
+          //can_rc_time_ms_1A0 = ms;
+			    //if ((ms - can_rc_time_ms_1A0) >= can_error_timeout_cal) {
+				  //CAN_Error_B = false;
+			    //}else{
+			  	//CAN_Error_B = false;
+			    //}
+          
+        } 
+
+        if (canId == 0x113) {
+          //Serial.println("Received Message with ID 0x113:");
+          //for (int i = 0; i < len; i++) {
+          //Serial.print(buf[i], HEX);
+          //Serial.print(" ");
+          //}
+          
+          ByWireControlIndicators[0] = buf[0]; 
+          ByWireControlIndicators[1] = buf[1];
+          ByWireControlIndicators[2] = 0; 
+          ByWireControlIndicators[3] = 0; 
+          ByWireControlIndicators[4] = buf[4]; 
+          ByWireControlIndicators[5] = buf[5];
+          ByWireControlIndicators[6] = buf[6];
+          ByWireControlIndicators[7] = buf[7];
+          size_t dataLength1 = sizeof(ByWireControlIndicators);
+          uint16_t crcResult1 = crc16_xmodem(ByWireControlIndicators, dataLength1);
+          byte highByte = buf[3];
+          byte lowByte = buf[2];
+          unsigned int combinedvalue;
+          combinedvalue = (highByte << 8 )| lowByte;
+
+
+          //can_rc_time_ms_113 = millis();
+			    //if ((millis() - can_rc_time_ms_113) >= can_error_timeout_cal) {
+				  //CAN_Error_B = false;
+			    //}else{
+			  	//CAN_Error_B = false;
+			    //}
+
+
+
+          if(ByWireControlIndicators[0] == 2 && Autonomous_Mode_B==true){
+            if(Indicator_High_B==true){
+              digitalWrite(IND_L_CONT, HIGH);
+              digitalWrite(IND_R_CONT, LOW);
+              delay(5);
+          
+              }
+            else{digitalWrite(IND_L_CONT, LOW);
+            digitalWrite(IND_R_CONT, LOW);}
+          } 
+          if (ByWireControlIndicators[0] == 3 && Autonomous_Mode_B==true){
+            if(Indicator_High_B==true){
+              digitalWrite(IND_R_CONT, HIGH);
+              digitalWrite(IND_L_CONT, LOW);
+              delay(5);
+              
+            }
+            else{digitalWrite(IND_R_CONT, LOW);
+            digitalWrite(IND_L_CONT, LOW);} 
+          } 
+          if (ByWireControlIndicators[0] == 4 && Autonomous_Mode_B==true){
+            if(Indicator_High_B==true){
+              digitalWrite(IND_L_CONT, HIGH);
+              digitalWrite(IND_R_CONT, HIGH);}
+            else{
+             digitalWrite(IND_L_CONT, LOW);
+             digitalWrite(IND_R_CONT, LOW);}
+          } 
+          else {
+
+            digitalWrite(IND_L_CONT, LOW);
+            digitalWrite(IND_R_CONT, LOW);
+          } // End of actions on 0x113 signals
+          //Serial.print(ByWireControlIndicators[0]);
+        } // End of message 0x113 extraction
+
+       
     
-    }
+      }
 
       //Serial.print("Data from ID: ");
       //Serial.println(CAN.getCanId(),HEX);
       //Serial.print("Buffer value: ");
-      //Serial.println(buf[0]);
+      
       //Serial.print("indicatorcommand Value: ");
       //Serial.print(indicatorcommand, DEC);
       //Serial.println();
@@ -235,16 +276,17 @@ void loop()
 
     //previousTime = currentTime;   // set previous time for next timer loop
 
+    Serial.println();
+    Serial.print("MODE: ");
+    Serial.print(Autonomous_Mode_B);
+
     //Serial.println();
-    //Serial.print("MODE: ");
-    //Serial.print(Autonomous_Mode);
-    //Serial.println();
-    //Serial.print("Indicator Switch: ");
-    //Serial.println(Indicator_Switch);
-    //Serial.println();
-    
-  } //CAN Unpack & send loop
-} //loop end
+    //Serial.println("millis: ");
+    //Serial.println(millis());
+  previousTime = currentTime;
+
+  } //CAN Unpack & Send loop end
+} //Main loop end
 
 //CRC16 Generation
 uint16_t crc16_xmodem(const uint8_t *data, size_t len) {

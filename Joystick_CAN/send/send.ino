@@ -67,7 +67,7 @@ const int  Accel_Y[5] =        {0,   0,      0,      0,      1000};
 const unsigned int Brake_X[5] = {0xE1, 0x1B0, 0x1E5, 0x210, 0x3A5};
 const int  Brake_Y[5] =        {1000,   0,      0,      0,      0};
 
-const unsigned long frameRepetitionTime=2000; //repetition rate of the frame in ms
+const unsigned long frameRepetitionTime=5; //repetition rate of the frame in ms
 unsigned long previousTime; // last time for frame rate calcs
 //rolling counters for alive signal
 byte countAccel = 0;
